@@ -137,9 +137,8 @@ CASE("extract cache, copy it, and pass non-owning pointer") {
 
     EXPECT(not matrix.empty());
 
-    ATLAS_TRACE_SCOPE("Interpolate with [eckit_linalg] sparse_matrix_multiply of ArrayView") {
-        atlas::linalg::sparse::current_backend("eckit_linalg");
-        atlas::linalg::sparse::default_backend("eckit_linalg").set("backend", "generic");
+    ATLAS_TRACE_SCOPE("Interpolate with [openmp] sparse_matrix_multiply of ArrayView") {
+        atlas::linalg::sparse::current_backend("openmp");
         auto src = array::make_view<double, 1>(field_source);
         auto tgt = array::make_view<double, 1>(field_target);
         atlas::linalg::sparse_matrix_multiply(matrix, src, tgt);

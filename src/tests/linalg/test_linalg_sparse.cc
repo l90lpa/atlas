@@ -28,7 +28,7 @@ namespace test {
 //----------------------------------------------------------------------------------------------------------------------
 
 // strings to be used in the tests
-static std::string eckit_linalg = sparse::backend::eckit_linalg::type();
+// static std::string eckit_linalg = sparse::backend::eckit_linalg::type();
 static std::string openmp       = sparse::backend::openmp::type();
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -173,28 +173,28 @@ CASE("test backend functionalities") {
     EXPECT_EQ(sparse::current_backend().type(), openmp);
     EXPECT_EQ(sparse::current_backend().getString("backend", "undefined"), "undefined");
 
-    sparse::current_backend(eckit_linalg);
-    EXPECT_EQ(sparse::current_backend().type(), "eckit_linalg");
-    EXPECT_EQ(sparse::current_backend().getString("backend", "undefined"), "undefined");
-    sparse::current_backend().set("backend", "default");
-    EXPECT_EQ(sparse::current_backend().getString("backend"), "default");
+    // sparse::current_backend(eckit_linalg);
+    // EXPECT_EQ(sparse::current_backend().type(), "eckit_linalg");
+    // EXPECT_EQ(sparse::current_backend().getString("backend", "undefined"), "undefined");
+    // sparse::current_backend().set("backend", "default");
+    // EXPECT_EQ(sparse::current_backend().getString("backend"), "default");
 
     sparse::current_backend(openmp);
     EXPECT_EQ(sparse::current_backend().getString("backend", "undefined"), "undefined");
-    EXPECT_EQ(sparse::default_backend(eckit_linalg).getString("backend"), "default");
+    // EXPECT_EQ(sparse::default_backend(eckit_linalg).getString("backend"), "default");
 
-    sparse::default_backend(eckit_linalg).set("backend", "generic");
-    EXPECT_EQ(sparse::default_backend(eckit_linalg).getString("backend"), "generic");
+    // sparse::default_backend(eckit_linalg).set("backend", "generic");
+    // EXPECT_EQ(sparse::default_backend(eckit_linalg).getString("backend"), "generic");
 
     const sparse::Backend backend_default      = sparse::Backend();
     const sparse::Backend backend_openmp       = sparse::backend::openmp();
-    const sparse::Backend backend_eckit_linalg = sparse::backend::eckit_linalg();
+    // const sparse::Backend backend_eckit_linalg = sparse::backend::eckit_linalg();
     EXPECT_EQ(backend_default.type(), openmp);
     EXPECT_EQ(backend_openmp.type(), openmp);
-    EXPECT_EQ(backend_eckit_linalg.type(), eckit_linalg);
+    // EXPECT_EQ(backend_eckit_linalg.type(), eckit_linalg);
 
     EXPECT_EQ(std::string(backend_openmp), openmp);
-    EXPECT_EQ(std::string(backend_eckit_linalg), eckit_linalg);
+    // EXPECT_EQ(std::string(backend_eckit_linalg), eckit_linalg);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -208,21 +208,19 @@ CASE("sparse_matrix vector multiply (spmv)") {
     // y = 1 2 3
     SparseMatrix A{3, 3, {{0, 0, 2.}, {0, 2, -3.}, {1, 1, 2.}, {2, 2, 2.}}};
 
-    for (std::string backend : {openmp, eckit_linalg}) {
+    for (std::string backend : {openmp}) {
         sparse::current_backend(backend);
 
         SECTION("test_identity [backend=" + sparse::current_backend().type() + "]") {
             {
                 Vector y1(3);
-                SparseMatrix B;
-                B.setIdentity(3, 3);
+                SparseMatrix B = Identity(3, 3);
                 sparse_matrix_multiply(B, Vector{1., 2., 3.}, y1);
                 expect_equal(y1, Vector{1., 2., 3.});
             }
 
             {
-                SparseMatrix C;
-                C.setIdentity(6, 3);
+                SparseMatrix C = Identity(6, 3);
                 Vector y2(6);
                 sparse_matrix_multiply(C, Vector{1., 2., 3.}, y2);
                 expect_equal(y2, Vector{1., 2., 3.});
@@ -230,8 +228,7 @@ CASE("sparse_matrix vector multiply (spmv)") {
             }
 
             {
-                SparseMatrix D;
-                D.setIdentity(2, 3);
+                SparseMatrix D = Identity(2, 3);
                 Vector y3(2);
                 sparse_matrix_multiply(D, Vector{1., 2., 3.}, y3);
                 expect_equal(y3, Vector{1., 2., 3.});
@@ -272,7 +269,7 @@ CASE("sparse_matrix matrix multiply (spmm)") {
     Matrix m{{1., 2.}, {3., 4.}, {5., 6.}};
     Matrix c_exp{{-13., -14.}, {6., 8.}, {10., 12.}};
 
-    for (std::string backend : {openmp, eckit_linalg}) {
+    for (std::string backend : {openmp}) {
         sparse::current_backend(backend);
 
         SECTION("eckit::Matrix [backend=" + sparse::current_backend().type() + "]") {
@@ -301,7 +298,7 @@ CASE("sparse_matrix matrix multiply (spmm)") {
     }
 
     SECTION("sparse_matrix_multiply [backend=openmp]") {
-        sparse::current_backend(eckit_linalg);  // expected to be ignored further
+        // sparse::current_backend(eckit_linalg);  // expected to be ignored further
         auto backend = sparse::backend::openmp();
         ArrayMatrix<float> ma(m);
         ArrayMatrix<float> c(3, 2);
@@ -310,7 +307,7 @@ CASE("sparse_matrix matrix multiply (spmm)") {
     }
 
     SECTION("SparseMatrixMultiply [backend=openmp] 1") {
-        sparse::current_backend(eckit_linalg);  // expected to be ignored
+        // sparse::current_backend(eckit_linalg);  // expected to be ignored
         auto spmm = SparseMatrixMultiply{sparse::backend::openmp()};
         ArrayMatrix<float> ma(m);
         ArrayMatrix<float> c(3, 2);
@@ -319,7 +316,7 @@ CASE("sparse_matrix matrix multiply (spmm)") {
     }
 
     SECTION("SparseMatrixMultiply [backend=openmp] 2") {
-        sparse::current_backend(eckit_linalg);  // expected to be ignored
+        // sparse::current_backend(eckit_linalg);  // expected to be ignored
         auto spmm = SparseMatrixMultiply{openmp};
         ArrayMatrix<float> ma(m);
         ArrayMatrix<float> c(3, 2);

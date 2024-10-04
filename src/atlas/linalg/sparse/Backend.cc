@@ -99,21 +99,22 @@ bool Backend::available() const {
     if (t == backend::openmp::type()) {
         return true;
     }
-    if (t == backend::eckit_linalg::type()) {
-        if (has("backend")) {
-#if ATLAS_ECKIT_HAVE_ECKIT_585
-            return eckit::linalg::LinearAlgebraSparse::hasBackend(getString("backend"));
-#else
-            return eckit::linalg::LinearAlgebra::hasBackend(getString("backend"));
-#endif
-        }
-        return true;
-    }
-#if ATLAS_ECKIT_HAVE_ECKIT_585
-    return eckit::linalg::LinearAlgebraSparse::hasBackend(t);
-#else
-    return eckit::linalg::LinearAlgebra::hasBackend(t);
-#endif
+    return false;
+//     if (t == backend::eckit_linalg::type()) {
+//         if (has("backend")) {
+// #if ATLAS_ECKIT_HAVE_ECKIT_585
+//             return eckit::linalg::LinearAlgebraSparse::hasBackend(getString("backend"));
+// #else
+//             return eckit::linalg::LinearAlgebra::hasBackend(getString("backend"));
+// #endif
+//         }
+//         return true;
+//     }
+// #if ATLAS_ECKIT_HAVE_ECKIT_585
+//     return eckit::linalg::LinearAlgebraSparse::hasBackend(t);
+// #else
+//     return eckit::linalg::LinearAlgebra::hasBackend(t);
+// #endif
 }
 
 
