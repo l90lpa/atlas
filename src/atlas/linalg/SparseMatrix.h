@@ -57,7 +57,10 @@ public:
         Size size_ = 0;  ///< Size of the container (AKA number of non-zeros nnz)
         Size rows_ = 0;  ///< Number of rows
         Size cols_ = 0;  ///< Number of columns
+
+        void print(std::ostream& os) const;
     };
+
 
 public:
     // -- Constructors
@@ -71,17 +74,11 @@ public:
     /// Copy constructor
     SparseMatrix(const SparseMatrix&);
 
-    // /// Move constructor
-    // SparseMatrix(SparseMatrix&&);
-
     /// Constructor from triplets
     SparseMatrix(Size rows, Size cols, const std::vector<eckit::linalg::Triplet>&);
 
     /// Assignment operator (allocates and copies data)
     SparseMatrix& operator=(const SparseMatrix&);
-
-    // /// Assignment operator (moves data)
-    // SparseMatrix& operator=(SparseMatrix&&);
 
 public:
     void swap(SparseMatrix&);
@@ -109,6 +106,9 @@ public:
 
     /// @returns read-only view of the data vector
     const Scalar* value() const { return value_view().data(); }
+
+    /// @returns read-only view of the data vector
+    const Scalar* data() const { return value_view().data(); }
     
     /// @returns read-only view of the outer index vector
     const Index* outer() const { return outer_view().data(); }
@@ -122,78 +122,79 @@ public:
     /// @returns footprint of the matrix in memory
     size_t footprint() const;
 
-    // /// @returns if allocation is in shared memory
-    // bool inSharedMemory() const;
+    /// Prune entries with exactly the given value
+    SparseMatrix& prune(Scalar = 0);
 
-// public:  // iterators
-//     struct iterator;
+    /// Transpose matrix in-place
+    SparseMatrix& transpose();
 
-//     struct const_iterator {
-//         const_iterator(const SparseMatrix&);
-//         const_iterator(const SparseMatrix&, Size row);
+public:  // iterators
+    struct iterator;
 
-//         const_iterator(const const_iterator&) = default;
-//         const_iterator(const_iterator&&)      = default;
+    struct const_iterator {
+        const_iterator(const SparseMatrix&);
+        const_iterator(const SparseMatrix&, Size row);
 
-//         virtual ~const_iterator() = default;
+        const_iterator(const const_iterator&) = default;
+        const_iterator(const_iterator&&)      = default;
 
-//         Size col() const;
-//         Size row() const;
+        virtual ~const_iterator() = default;
 
-//         operator bool() const { return matrix_ && (index_ < matrix_->nonZeros()); }
+        Size col() const;
+        Size row() const;
 
-//         const_iterator& operator++();
-//         const_iterator operator++(int);
+        operator bool() const { return matrix_ && (index_ < matrix_->nonZeros()); }
 
-//         const_iterator& operator=(const const_iterator&) = default;
-//         const_iterator& operator=(const_iterator&&)      = default;
+        const_iterator& operator++();
+        const_iterator operator++(int);
 
-//         bool operator!=(const const_iterator& other) const { return !operator==(other); }
-//         bool operator==(const const_iterator&) const;
+        const_iterator& operator=(const const_iterator&) = default;
+        const_iterator& operator=(const_iterator&&)      = default;
 
-//         const Scalar& operator*() const;
+        bool operator!=(const const_iterator& other) const { return !operator==(other); }
+        bool operator==(const const_iterator&) const;
 
-//         void print(std::ostream&) const;
+        const Scalar& operator*() const;
 
-//         bool lastOfRow() const { return ((index_ + 1) == static_cast<Size>(matrix_->spm_.outer_[row_ + 1])); }
+        void print(std::ostream&) const;
 
-//     private:
-//         friend struct iterator;
+        bool lastOfRow() const { return ((index_ + 1) == static_cast<Size>(matrix_->outer()[row_ + 1])); }
 
-//         SparseMatrix* matrix_;
-//         Size index_;
-//         Size row_;
-//     };
+    private:
+        friend struct iterator;
 
-//     struct iterator final : const_iterator {
-//         using const_iterator::const_iterator;
-//         Scalar& operator*();
-//     };
+        SparseMatrix* matrix_;
+        Size index_;
+        Size row_;
+    };
 
-//     /// const iterators to begin/end of row
-//     const_iterator begin(Size row) const { return {*this, row}; }
-//     const_iterator end(Size row) const { return {*this, row + 1}; }
+    struct iterator final : const_iterator {
+        using const_iterator::const_iterator;
+        Scalar& operator*();
+    };
 
-//     /// const iterators to begin/end of matrix
-//     const_iterator begin() const { return {*this}; }
-//     const_iterator end() const { return {*this, rows()}; }
+    /// const iterators to begin/end of row
+    const_iterator begin(Size row) const { return {*this, row}; }
+    const_iterator end(Size row) const { return {*this, row + 1}; }
 
-//     /// iterators to begin/end of row
-//     iterator begin(Size row) { return {*this, row}; }
-//     iterator end(Size row) { return {*this, row + 1}; }
+    /// const iterators to begin/end of matrix
+    const_iterator begin() const { return {*this}; }
+    const_iterator end() const { return {*this, rows()}; }
 
-//     /// const iterators to begin/end of matrix
-//     iterator begin() { return {*this}; }
-//     iterator end() { return {*this, rows()}; }
+    /// iterators to begin/end of row
+    iterator begin(Size row) { return {*this, row}; }
+    iterator end(Size row) { return {*this, row + 1}; }
+
+    /// const iterators to begin/end of matrix
+    iterator begin() { return {*this}; }
+    iterator end() { return {*this, rows()}; }
 
 private:
-    std::unique_ptr<atlas::array::Array> value_;
-    std::unique_ptr<atlas::array::Array> outer_;
-    std::unique_ptr<atlas::array::Array> inner_;
-
     Shape shape_;  ///< Matrix shape
+    std::unique_ptr<atlas::array::ArrayT<Scalar>> value_;
+    std::unique_ptr<atlas::array::ArrayT<Index>> outer_;
+    std::unique_ptr<atlas::array::ArrayT<Index>> inner_;
 };
-
 
 //----------------------------------------------------------------------------------------------------------------------
 }  // namespace linalg

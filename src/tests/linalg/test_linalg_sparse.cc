@@ -104,6 +104,69 @@ private:
     array::ArrayView<Value, 1> view_;
 };
 
+SparseMatrix Identity(SparseMatrix::Size rows, SparseMatrix::Size cols) {
+    ASSERT(rows > 0 && cols > 0);
+
+    const auto nnz = std::min(rows, cols);
+
+    std::vector<eckit::linalg::Triplet> triplets;
+    triplets.reserve(nnz);
+
+    for (SparseMatrix::Size i = 0; i < nnz; ++i) {
+        triplets.emplace_back(i, i, 1);
+    }
+
+    return SparseMatrix(rows, cols, triplets);
+}
+
+template<typename T>
+atlas::array::ArrayView<const T, 1> make_view(const std::vector<T>& v) {
+    return atlas::array::ArrayView<const T, 1>(v.data(), atlas::array::make_shape(v.size()), atlas::array::make_strides(1));
+}
+
+template<typename T>
+bool operator==(const atlas::array::ArrayView<T, 1>& x, const atlas::array::ArrayView<T, 1>& y) {
+    if (x.size() != y.size()) {
+        return false;
+    }
+
+    for (atlas::idx_t i = 0; i < x.size(); ++i) {
+        if (x[i] != y[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+template<typename T>
+bool operator!=(const atlas::array::ArrayView<T, 1>& x, const atlas::array::ArrayView<T, 1>& y) {
+    return !(x == y);
+}
+
+bool operator==(const SparseMatrix& A, const SparseMatrix& B) {
+    if (A.rows() != B.rows() || A.cols() != B.cols() || A.nonZeros() != B.nonZeros()) {
+        return false;
+    }
+
+    const auto A_value_v = A.value_view();
+    const auto A_outer_v = A.outer_view();
+    const auto A_inner_v = A.inner_view();
+
+    const auto B_value_v = B.value_view();
+    const auto B_outer_v = B.outer_view();
+    const auto B_inner_v = B.inner_view();
+
+    if (A_value_v != B_value_v || A_outer_v != B_outer_v || A_inner_v != B_inner_v) {
+        return false;
+    }
+
+    return true;
+}
+
+bool operator!=(const SparseMatrix& A, const SparseMatrix& B) {
+    return !(A == B);
+}
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -195,6 +258,94 @@ CASE("test backend functionalities") {
 
     EXPECT_EQ(std::string(backend_openmp), openmp);
     // EXPECT_EQ(std::string(backend_eckit_linalg), eckit_linalg);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+CASE("SparseMatrix default constructor") {
+    SparseMatrix A;
+    EXPECT_EQ(A.rows(), 0);
+    EXPECT_EQ(A.cols(), 0);
+    EXPECT_EQ(A.nonZeros(), 0);
+}
+
+CASE("SparseMatrix copy constructor") {
+    SparseMatrix A{3, 3, {{0, 0, 2.}, {0, 2, -3.}, {1, 1, 2.}, {2, 2, 2.}}};
+    SparseMatrix B{A};
+    EXPECT(A == B);
+}
+
+CASE("SparseMatrix assignment constructor") {
+    SparseMatrix A{3, 3, {{0, 0, 2.}, {0, 2, -3.}, {1, 1, 2.}, {2, 2, 2.}}};
+    auto B = A;
+    EXPECT(A == B);
+}
+
+CASE("SparseMatrix assignment") {
+    SparseMatrix A{3, 3, {{0, 0, 2.}, {0, 2, -3.}, {1, 1, 2.}, {2, 2, 2.}}};
+    SparseMatrix B;
+    B = A;
+    EXPECT(A == B);
+}
+
+CASE("SparseMatrix triplet constructor") {
+    SparseMatrix A{3, 3, {{0, 0, 2.}, {0, 2, -3.}, {1, 1, 2.}, {2, 2, 2.}}};
+    EXPECT_EQ(A.rows(), 3);
+    EXPECT_EQ(A.cols(), 3);
+    EXPECT_EQ(A.nonZeros(), 4);
+    auto value_v = A.value_view();
+    auto outer_v = A.outer_view();
+    auto inner_v = A.inner_view();
+    
+    std::vector<SparseMatrix::Scalar> value_exp{2., -3., 2., 2.};
+    std::vector<SparseMatrix::Index> outer_exp{0, 2, 3, 4};
+    std::vector<SparseMatrix::Index> inner_exp{0, 2, 1, 2};
+    EXPECT(value_v == make_view(value_exp));
+    EXPECT(outer_v == make_view(outer_exp));
+    EXPECT(inner_v == make_view(inner_exp));
+}
+
+CASE("SparseMatrix triplet constructor 2") {
+    SparseMatrix A{3, 3, {{0, 0, 2.}, {0, 2, 0.}, {1, 1, 2.}, {2, 2, 2.}}};
+    EXPECT_EQ(A.rows(), 3);
+    EXPECT_EQ(A.cols(), 3);
+    EXPECT_EQ(A.nonZeros(), 3);
+    auto value_v = A.value_view();
+    auto outer_v = A.outer_view();
+    auto inner_v = A.inner_view();
+    
+    std::vector<SparseMatrix::Scalar> value_exp{2., 2., 2.};
+    std::vector<SparseMatrix::Index> outer_exp{0, 1, 2, 3};
+    std::vector<SparseMatrix::Index> inner_exp{0, 1, 2};
+    EXPECT(value_v == make_view(value_exp));
+    EXPECT(outer_v == make_view(outer_exp));
+    EXPECT(inner_v == make_view(inner_exp));
+}
+
+CASE("SparseMatrix swap") {
+    SparseMatrix A_test{3, 3, {{0, 0, 2.}, {0, 2, 0.}, {1, 1, 2.}, {2, 2, 2.}}};
+    SparseMatrix A{A_test};
+    
+    SparseMatrix B_test;
+    SparseMatrix B{B_test};
+
+    A.swap(B);
+    EXPECT(A == B_test);
+    EXPECT(B == A_test);
+}
+
+CASE("SparseMatrix transpose") {
+    SparseMatrix A{3, 3, {{0, 0, 2.}, {0, 2, -3.}, {1, 1, 2.}, {2, 2, 2.}}};
+    SparseMatrix AT{3, 3, {{0, 0, 2.}, {1, 1, 2.}, {2, 0, -3.}, {2, 2, 2.}}};
+    A.transpose();
+    EXPECT(A == AT);
+}
+
+CASE("SparseMatrix prune") {
+    SparseMatrix A{3, 3, {{0, 0, 2.}, {0, 2, 0}, {1, 1, 2.}, {2, 2, 2.}}};
+    SparseMatrix A_pruned{3, 3, {{0, 0, 2.}, {1, 1, 2.}, {2, 2, 2.}}};
+    A.prune();
+    EXPECT(A == A_pruned);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
