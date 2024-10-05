@@ -128,6 +128,85 @@ public:
     /// Transpose matrix in-place
     SparseMatrix& transpose();
 
+public:
+    void updateDevice() const { 
+        value_->updateDevice();
+        outer_->updateDevice();
+        inner_->updateDevice();
+    }
+
+    void updateHost() const { 
+        value_->updateHost();
+        outer_->updateHost();
+        inner_->updateHost();
+    }
+
+    bool hostNeedsUpdate() const { 
+        return value_->hostNeedsUpdate() ||
+               outer_->hostNeedsUpdate() ||
+               inner_->hostNeedsUpdate();
+    }
+
+    bool deviceNeedsUpdate() const { 
+        return value_->deviceNeedsUpdate() ||
+               outer_->deviceNeedsUpdate() ||
+               inner_->deviceNeedsUpdate();
+    }
+
+    void setHostNeedsUpdate(bool v) const { 
+        value_->setHostNeedsUpdate(v);
+        outer_->setHostNeedsUpdate(v);
+        inner_->setHostNeedsUpdate(v);
+    }
+
+    void setDeviceNeedsUpdate(bool v) const {
+        value_->setDeviceNeedsUpdate(v);
+        outer_->setDeviceNeedsUpdate(v);
+        inner_->setDeviceNeedsUpdate(v);
+    }
+
+    bool deviceAllocated() const {
+        return value_->deviceAllocated() &&
+               outer_->deviceAllocated() &&
+               inner_->deviceAllocated();
+    }
+
+    void allocateDevice() {
+        value_->allocateDevice();
+        outer_->allocateDevice();
+        inner_->allocateDevice();
+    }
+
+    void deallocateDevice() { 
+        value_->deallocateDevice();
+        outer_->deallocateDevice();
+        inner_->deallocateDevice();
+    }
+
+    /// @returns read-only view of the data vector
+    const Scalar* host_value() const { return value(); }
+
+    /// @returns read-only view of the data vector
+    const Scalar* host_data() const { return host_value(); }
+    
+    /// @returns read-only view of the outer index vector
+    const Index* host_outer() const { return outer(); }
+
+    /// @returns read-only view of the inner index vector
+    const Index* host_inner() const { return inner(); }
+
+        /// @returns read-only view of the data vector
+    const Scalar* device_value() const { return value_->device_data<Scalar>(); }
+
+    /// @returns read-only view of the data vector
+    const Scalar* device_data() const { return device_value(); }
+    
+    /// @returns read-only view of the outer index vector
+    const Index* device_outer() const { return outer_->device_data<Index>(); }
+
+    /// @returns read-only view of the inner index vector
+    const Index* device_inner() const { return inner_->device_data<Index>(); }
+
 public:  // iterators
     struct iterator;
 
