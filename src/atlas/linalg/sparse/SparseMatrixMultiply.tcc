@@ -76,6 +76,8 @@ void sparse_matrix_multiply( const Matrix& matrix, const SourceView& src, Target
     std::string type = config.getString( "type", sparse::current_backend() );
     if ( type == sparse::backend::openmp::type() ) {
         sparse::dispatch_sparse_matrix_multiply<sparse::backend::openmp>( matrix, src, tgt, indexing, config );
+    } else if ( type == sparse::backend::hicsparse::type() ) {
+        sparse::dispatch_sparse_matrix_multiply<sparse::backend::hicsparse>( matrix, src, tgt, indexing, config );
     }
 //     else if ( type == sparse::backend::eckit_linalg::type() ) {
 //         sparse::dispatch_sparse_matrix_multiply<sparse::backend::eckit_linalg>( matrix, src, tgt, indexing, config );

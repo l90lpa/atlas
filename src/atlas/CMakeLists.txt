@@ -699,6 +699,8 @@ linalg/sparse/SparseMatrixMultiply.tcc
 # linalg/sparse/SparseMatrixMultiply_EckitLinalg.cc
 linalg/sparse/SparseMatrixMultiply_OpenMP.h
 linalg/sparse/SparseMatrixMultiply_OpenMP.cc
+linalg/sparse/SparseMatrixMultiply_hicSparse.h
+linalg/sparse/SparseMatrixMultiply_hicSparse.cc
 linalg/dense.h
 linalg/dense/Backend.h
 linalg/dense/Backend.cc

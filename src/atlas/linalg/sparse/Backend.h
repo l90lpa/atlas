@@ -43,6 +43,11 @@ struct openmp : Backend {
 //     static std::string type() { return "eckit_linalg"; }
 //     eckit_linalg(): Backend(type()) {}
 // };
+
+struct hicsparse : Backend {
+    static std::string type() { return "hicsparse"; }
+    hicsparse(): Backend(type()) {}
+};
 }  // namespace backend
 
 

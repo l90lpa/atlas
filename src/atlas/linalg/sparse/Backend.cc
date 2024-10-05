@@ -98,6 +98,8 @@ bool Backend::available() const {
     std::string t = type();
     if (t == backend::openmp::type()) {
         return true;
+    } else if (t == backend::hicsparse::type()) {
+        return true;
     }
     return false;
 //     if (t == backend::eckit_linalg::type()) {
