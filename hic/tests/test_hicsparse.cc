@@ -261,6 +261,8 @@ int test_hicsparseSpMV() {
         HICSPARSE_SPMV_ALG_DEFAULT,
         buffer) );
     
+    HIC_CALL( hicFree(buffer) );
+
     // Copy result back to host
     HIC_CALL( hicMemcpy(y, dy, N * sizeof(double), hicMemcpyDeviceToHost) );
 
@@ -399,6 +401,8 @@ int test_hicsparseSpMM() {
         HIC_R_64F,
         HICSPARSE_SPMM_ALG_DEFAULT,
         buffer));
+
+    HIC_CALL(hicFree(buffer));
 
     // Copy result back to host
     HIC_CALL(hicMemcpy(C, dC, rows * B_cols * sizeof(double), hicMemcpyDeviceToHost));
