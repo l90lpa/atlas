@@ -78,18 +78,7 @@ void sparse_matrix_multiply( const Matrix& matrix, const SourceView& src, Target
         sparse::dispatch_sparse_matrix_multiply<sparse::backend::openmp>( matrix, src, tgt, indexing, config );
     } else if ( type == sparse::backend::hicsparse::type() ) {
         sparse::dispatch_sparse_matrix_multiply<sparse::backend::hicsparse>( matrix, src, tgt, indexing, config );
-    }
-//     else if ( type == sparse::backend::eckit_linalg::type() ) {
-//         sparse::dispatch_sparse_matrix_multiply<sparse::backend::eckit_linalg>( matrix, src, tgt, indexing, config );
-//     }
-// #if ATLAS_ECKIT_HAVE_ECKIT_585
-//     else if( eckit::linalg::LinearAlgebraSparse::hasBackend(type) ) {
-// #else
-//     else if( eckit::linalg::LinearAlgebra::hasBackend(type) ) {
-// #endif
-//         sparse::dispatch_sparse_matrix_multiply<sparse::backend::eckit_linalg>( matrix, src, tgt, indexing, util::Config("backend",type)  );
-//     }
-    else {
+    } else {
         throw_NotImplemented( "sparse_matrix_multiply cannot be performed with unsupported backend [" + type + "]",
                               Here() );
     }
