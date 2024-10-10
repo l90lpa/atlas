@@ -195,7 +195,7 @@ public:
     /// @returns read-only view of the inner index vector
     const Index* host_inner() const { return inner(); }
 
-        /// @returns read-only view of the data vector
+    /// @returns read-only view of the data vector
     const Scalar* device_value() const { return value_->device_data<Scalar>(); }
 
     /// @returns read-only view of the data vector

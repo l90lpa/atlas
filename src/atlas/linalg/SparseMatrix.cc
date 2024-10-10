@@ -13,7 +13,6 @@ namespace {
 
     size_t countNonZeroTriplets(const std::vector<eckit::linalg::Triplet>& triplets) {
         const auto nonZeros = std::count_if(triplets.begin(), triplets.end(), [](const auto& tri) { return tri.nonZero(); });
-        std::cout << "(countNonZeroTriplets) nonZeros: " << nonZeros << std::endl;
         if (nonZeros == 0) {
             throw eckit::OutOfRange("SparseMatrix::SparseMatrix: no non-zero entries in triplets", Here());
         }
