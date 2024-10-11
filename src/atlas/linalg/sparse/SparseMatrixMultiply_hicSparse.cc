@@ -75,7 +75,7 @@ namespace linalg {
 namespace sparse {
 
 template <typename SourceValue, typename TargetValue>
-void hsSpMV(TargetValue alpha, const SparseMatrix& W, const View<SourceValue, 1>& src, TargetValue beta, View<TargetValue, 1>& tgt) {
+void hsSpMV(const SparseMatrix& W, const View<SourceValue, 1>& src, TargetValue beta, View<TargetValue, 1>& tgt) {
     // Assume that src and tgt are device views
 
     ATLAS_ASSERT(src.shape(0) >= W.cols());
@@ -121,6 +121,8 @@ void hsSpMV(TargetValue alpha, const SparseMatrix& W, const View<SourceValue, 1>
     using ComputeType = typename View<TargetValue, 1>::value_type;
     constexpr auto compute_type = getHicsparseValueType<ComputeType>();
 
+    ComputeType alpha = 1;
+
     // Determine buffer size
     size_t bufferSize = 0;
     HICSPARSE_CALL(hicsparseSpMV_bufferSize(
@@ -161,7 +163,7 @@ void hsSpMV(TargetValue alpha, const SparseMatrix& W, const View<SourceValue, 1>
 
 
 template <Indexing IndexLayout, typename SourceValue, typename TargetValue>
-void hsSpMM(TargetValue alpha, const SparseMatrix& W, const View<SourceValue, 2>& src, TargetValue beta, View<TargetValue, 2>& tgt) {
+void hsSpMM(const SparseMatrix& W, const View<SourceValue, 2>& src, TargetValue beta, View<TargetValue, 2>& tgt) {
     // Assume that src and tgt are device views
 
     constexpr int row_idx = (IndexLayout == Indexing::layout_left) ? 0 : 1;
@@ -215,6 +217,8 @@ void hsSpMM(TargetValue alpha, const SparseMatrix& W, const View<SourceValue, 2>
     using ComputeType = typename View<TargetValue, 2>::value_type;
     constexpr auto compute_type = getHicsparseValueType<ComputeType>();
 
+    ComputeType alpha = 1;
+
     // Determine buffer size
     size_t bufferSize = 0;
     HICSPARSE_CALL(hicsparseSpMM_bufferSize(
@@ -256,31 +260,59 @@ void hsSpMM(TargetValue alpha, const SparseMatrix& W, const View<SourceValue, 2>
 }
 
 template <typename SourceValue, typename TargetValue>
-void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_left, 1, SourceValue, TargetValue>::apply(
-    const SparseMatrix& W, const View<SourceValue, 1>& src, TargetValue beta, View<TargetValue, 1>& tgt, const Configuration&) {
-    TargetValue alpha = 1;
-    hsSpMV(alpha, W, src, beta, tgt);
+void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_left, 1, SourceValue, TargetValue>::multiply(
+    const SparseMatrix& W, const View<SourceValue, 1>& src, View<TargetValue, 1>& tgt, const Configuration&) {
+    TargetValue beta = 0;
+    hsSpMV(W, src, beta, tgt);
 }
 
 template <typename SourceValue, typename TargetValue>
-void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_left, 2, SourceValue, TargetValue>::apply(
-    const SparseMatrix& W, const View<SourceValue, 2>& src, TargetValue beta, View<TargetValue, 2>& tgt, const Configuration&) {
-    TargetValue alpha = 1;
-    hsSpMM<Indexing::layout_left>(alpha, W, src, beta, tgt);
+void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_left, 1, SourceValue, TargetValue>::multiplyAdd(
+    const SparseMatrix& W, const View<SourceValue, 1>& src, View<TargetValue, 1>& tgt, const Configuration&) {
+    TargetValue beta = 1;
+    hsSpMV(W, src, beta, tgt);
 }
 
 template <typename SourceValue, typename TargetValue>
-void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_right, 1, SourceValue, TargetValue>::apply(
-    const SparseMatrix& W, const View<SourceValue, 1>& src, TargetValue beta, View<TargetValue, 1>& tgt, const Configuration&) {
-    TargetValue alpha = 1;
-    hsSpMV(alpha, W, src, beta, tgt);
+void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_left, 2, SourceValue, TargetValue>::multiply(
+    const SparseMatrix& W, const View<SourceValue, 2>& src, View<TargetValue, 2>& tgt, const Configuration&) {
+    TargetValue beta = 0;
+    hsSpMM<Indexing::layout_left>(W, src, beta, tgt);
 }
 
 template <typename SourceValue, typename TargetValue>
-void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_right, 2, SourceValue, TargetValue>::apply(
-    const SparseMatrix& W, const View<SourceValue, 2>& src, TargetValue beta, View<TargetValue, 2>& tgt, const Configuration&) {
-    TargetValue alpha = 1;
-    hsSpMM<Indexing::layout_right>(alpha, W, src, beta, tgt);
+void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_left, 2, SourceValue, TargetValue>::multiplyAdd(
+    const SparseMatrix& W, const View<SourceValue, 2>& src, View<TargetValue, 2>& tgt, const Configuration&) {
+    TargetValue beta = 1;
+    hsSpMM<Indexing::layout_left>(W, src, beta, tgt);
+}
+
+template <typename SourceValue, typename TargetValue>
+void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_right, 1, SourceValue, TargetValue>::multiply(
+    const SparseMatrix& W, const View<SourceValue, 1>& src, View<TargetValue, 1>& tgt, const Configuration&) {
+    TargetValue beta = 0;
+    hsSpMV(W, src, beta, tgt);
+}
+
+template <typename SourceValue, typename TargetValue>
+void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_right, 1, SourceValue, TargetValue>::multiplyAdd(
+    const SparseMatrix& W, const View<SourceValue, 1>& src, View<TargetValue, 1>& tgt, const Configuration&) {
+    TargetValue beta = 1;
+    hsSpMV(W, src, beta, tgt);
+}
+
+template <typename SourceValue, typename TargetValue>
+void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_right, 2, SourceValue, TargetValue>::multiply(
+    const SparseMatrix& W, const View<SourceValue, 2>& src, View<TargetValue, 2>& tgt, const Configuration&) {
+    TargetValue beta = 0;
+    hsSpMM<Indexing::layout_right>(W, src, beta, tgt);
+}
+
+template <typename SourceValue, typename TargetValue>
+void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_right, 2, SourceValue, TargetValue>::multiplyAdd(
+    const SparseMatrix& W, const View<SourceValue, 2>& src, View<TargetValue, 2>& tgt, const Configuration&) {
+    TargetValue beta = 1;
+    hsSpMM<Indexing::layout_right>(W, src, beta, tgt);
 }
 
 #define EXPLICIT_TEMPLATE_INSTANTIATION(TYPE)                                                           \

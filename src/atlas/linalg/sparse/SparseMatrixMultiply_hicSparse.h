@@ -18,26 +18,34 @@ namespace sparse {
 
 template <typename SourceValue, typename TargetValue>
 struct SparseMatrixMultiply<backend::hicsparse, Indexing::layout_left, 1, SourceValue, TargetValue> {
-    static void apply(const SparseMatrix& W, const View<SourceValue, 1>& src, TargetValue beta, View<TargetValue, 1>& tgt,
-                      const Configuration&);
+    static void multiply(const SparseMatrix& W, const View<SourceValue, 1>& src, View<TargetValue, 1>& tgt,
+                         const Configuration&);
+    static void multiplyAdd(const SparseMatrix& W, const View<SourceValue, 1>& src, View<TargetValue, 1>& tgt,
+                            const Configuration&);
 };
 
 template <typename SourceValue, typename TargetValue>
 struct SparseMatrixMultiply<backend::hicsparse, Indexing::layout_left, 2, SourceValue, TargetValue> {
-    static void apply(const SparseMatrix& W, const View<SourceValue, 2>& src, TargetValue beta, View<TargetValue, 2>& tgt,
-                      const Configuration&);
+    static void multiply(const SparseMatrix& W, const View<SourceValue, 2>& src, View<TargetValue, 2>& tgt,
+                         const Configuration&);
+    static void multiplyAdd(const SparseMatrix& W, const View<SourceValue, 2>& src, View<TargetValue, 2>& tgt,
+                            const Configuration&);
 };
 
 template <typename SourceValue, typename TargetValue>
 struct SparseMatrixMultiply<backend::hicsparse, Indexing::layout_right, 1, SourceValue, TargetValue> {
-    static void apply(const SparseMatrix& W, const View<SourceValue, 1>& src, TargetValue beta, View<TargetValue, 1>& tgt,
-                      const Configuration&);
+    static void multiply(const SparseMatrix& W, const View<SourceValue, 1>& src, View<TargetValue, 1>& tgt,
+                         const Configuration&);
+    static void multiplyAdd(const SparseMatrix& W, const View<SourceValue, 1>& src, View<TargetValue, 1>& tgt,
+                            const Configuration&);
 };
 
 template <typename SourceValue, typename TargetValue>
 struct SparseMatrixMultiply<backend::hicsparse, Indexing::layout_right, 2, SourceValue, TargetValue> {
-    static void apply(const SparseMatrix& W, const View<SourceValue, 2>& src, TargetValue beta, View<TargetValue, 2>& tgt,
-                      const Configuration&);
+    static void multiply(const SparseMatrix& W, const View<SourceValue, 2>& src, View<TargetValue, 2>& tgt,
+                         const Configuration&);
+    static void multiplyAdd(const SparseMatrix& W, const View<SourceValue, 2>& src, View<TargetValue, 2>& tgt,
+                            const Configuration&);
 };
 
 }  // namespace sparse
