@@ -257,33 +257,29 @@ void hsSpMM(TargetValue alpha, const SparseMatrix& W, const View<SourceValue, 2>
 
 template <typename SourceValue, typename TargetValue>
 void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_left, 1, SourceValue, TargetValue>::apply(
-    const SparseMatrix& W, const View<SourceValue, 1>& src, View<TargetValue, 1>& tgt, const Configuration&) {
+    const SparseMatrix& W, const View<SourceValue, 1>& src, TargetValue beta, View<TargetValue, 1>& tgt, const Configuration&) {
     TargetValue alpha = 1;
-    TargetValue beta  = 0;
     hsSpMV(alpha, W, src, beta, tgt);
 }
 
 template <typename SourceValue, typename TargetValue>
 void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_left, 2, SourceValue, TargetValue>::apply(
-    const SparseMatrix& W, const View<SourceValue, 2>& src, View<TargetValue, 2>& tgt, const Configuration&) {
+    const SparseMatrix& W, const View<SourceValue, 2>& src, TargetValue beta, View<TargetValue, 2>& tgt, const Configuration&) {
     TargetValue alpha = 1;
-    TargetValue beta  = 0;
     hsSpMM<Indexing::layout_left>(alpha, W, src, beta, tgt);
 }
 
 template <typename SourceValue, typename TargetValue>
 void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_right, 1, SourceValue, TargetValue>::apply(
-    const SparseMatrix& W, const View<SourceValue, 1>& src, View<TargetValue, 1>& tgt, const Configuration&) {
+    const SparseMatrix& W, const View<SourceValue, 1>& src, TargetValue beta, View<TargetValue, 1>& tgt, const Configuration&) {
     TargetValue alpha = 1;
-    TargetValue beta  = 0;
     hsSpMV(alpha, W, src, beta, tgt);
 }
 
 template <typename SourceValue, typename TargetValue>
 void SparseMatrixMultiply<backend::hicsparse, Indexing::layout_right, 2, SourceValue, TargetValue>::apply(
-    const SparseMatrix& W, const View<SourceValue, 2>& src, View<TargetValue, 2>& tgt, const Configuration&) {
+    const SparseMatrix& W, const View<SourceValue, 2>& src, TargetValue beta, View<TargetValue, 2>& tgt, const Configuration&) {
     TargetValue alpha = 1;
-    TargetValue beta  = 0;
     hsSpMM<Indexing::layout_right>(alpha, W, src, beta, tgt);
 }
 
