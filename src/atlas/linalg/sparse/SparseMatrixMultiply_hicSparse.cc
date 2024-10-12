@@ -109,14 +109,14 @@ void hsSpMV(const SparseMatrix& W, const View<SourceValue, 1>& src, TargetValue 
         &vecX,
         static_cast<int64_t>(W.cols()), 
         src.data(),
-        getHicsparseValueType<View<SourceValue, 1>::value_type>()));
+        getHicsparseValueType<typename View<SourceValue, 1>::value_type>()));
 
     hicsparseDnVecDescr_t vecY;
     HICSPARSE_CALL(hicsparseCreateDnVec(
         &vecY,
         W.rows(),
         tgt.data(),
-        getHicsparseValueType<View<TargetValue, 1>::value_type>()));
+        getHicsparseValueType<typename View<TargetValue, 1>::value_type>()));
 
     using ComputeType = typename View<TargetValue, 1>::value_type;
     constexpr auto compute_type = getHicsparseValueType<ComputeType>();
@@ -140,7 +140,7 @@ void hsSpMV(const SparseMatrix& W, const View<SourceValue, 1>& src, TargetValue 
     // Allocate buffer
     char* buffer;
     HIC_CALL(hicMalloc(&buffer, bufferSize));
-
+    
     // Perform SpMV
     HICSPARSE_CALL(hicsparseSpMV(
         handle,
@@ -202,7 +202,7 @@ void hsSpMM(const SparseMatrix& W, const View<SourceValue, 2>& src, TargetValue 
         W.cols(), src.shape(col_idx),
         getLeadingDimension(src),
         src.data(),
-        getHicsparseValueType<View<SourceValue, 2>::value_type>(),
+        getHicsparseValueType<typename View<SourceValue, 2>::value_type>(),
         getHicsparseOrder<IndexLayout>(src)));
 
     hicsparseDnMatDescr_t matC;
@@ -211,7 +211,7 @@ void hsSpMM(const SparseMatrix& W, const View<SourceValue, 2>& src, TargetValue 
         W.rows(), tgt.shape(col_idx),
         getLeadingDimension(tgt),
         tgt.data(),
-        getHicsparseValueType<View<TargetValue, 2>::value_type>(),
+        getHicsparseValueType<typename View<TargetValue, 2>::value_type>(),
         getHicsparseOrder<IndexLayout>(tgt)));
 
     using ComputeType = typename View<TargetValue, 2>::value_type;
