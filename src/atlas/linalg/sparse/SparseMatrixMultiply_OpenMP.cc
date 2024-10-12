@@ -154,7 +154,7 @@ void SparseMatrixMultiply<backend::openmp, Indexing::layout_left, 3, SourceValue
         // We can take a more optimized route by reducing rank
         auto src_v = View<SourceValue, 2>(src.data(), array::make_shape(src.shape(0), src.stride(0)));
         auto tgt_v = View<TargetValue, 2>(tgt.data(), array::make_shape(tgt.shape(0), tgt.stride(0)));
-        SparseMatrixMultiply<backend::openmp, Indexing::layout_left, 2, SourceValue, TargetValue>::multiply(W, src_v, tgt_v, config);
+        SparseMatrixMultiply<backend::openmp, Indexing::layout_left, 2, SourceValue, TargetValue>::multiplyAdd(W, src_v, tgt_v, config);
         return;
     }
     using Value       = TargetValue;
@@ -187,7 +187,7 @@ void SparseMatrixMultiply<backend::openmp, Indexing::layout_right, 1, SourceValu
 template <typename SourceValue, typename TargetValue>
 void SparseMatrixMultiply<backend::openmp, Indexing::layout_right, 1, SourceValue, TargetValue>::multiplyAdd(
     const SparseMatrix& W, const View<SourceValue, 1>& src, View<TargetValue, 1>& tgt, const Configuration& config) {
-    return SparseMatrixMultiply<backend::openmp, Indexing::layout_left, 1, SourceValue, TargetValue>::multiply(W, src, tgt, config);
+    return SparseMatrixMultiply<backend::openmp, Indexing::layout_left, 1, SourceValue, TargetValue>::multiplyAdd(W, src, tgt, config);
 }
 
 template <typename SourceValue, typename TargetValue>
@@ -285,7 +285,7 @@ void SparseMatrixMultiply<backend::openmp, Indexing::layout_right, 3, SourceValu
         // We can take a more optimized route by reducing rank
         auto src_v = View<SourceValue, 2>(src.data(), array::make_shape(src.shape(0), src.stride(0)));
         auto tgt_v = View<TargetValue, 2>(tgt.data(), array::make_shape(tgt.shape(0), tgt.stride(0)));
-        SparseMatrixMultiply<backend::openmp, Indexing::layout_right, 2, SourceValue, TargetValue>::multiply(
+        SparseMatrixMultiply<backend::openmp, Indexing::layout_right, 2, SourceValue, TargetValue>::multiplyAdd(
             W, src_v, tgt_v, config);
         return;
     }
