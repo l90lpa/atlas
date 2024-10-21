@@ -30,6 +30,30 @@ namespace linalg {
 
 namespace sparse {
 namespace {
+template <typename Backend, Indexing indexing>
+struct SparseMatrixMultiplyHelper {
+    template <typename SourceView, typename TargetView>
+    static void multiply( const SparseMatrix& W, const SourceView& src, TargetView& tgt,
+                       const eckit::Configuration& config ) {
+        using SourceValue = const typename std::remove_const<typename SourceView::value_type>::type;
+        using TargetValue = typename std::remove_const<typename TargetView::value_type>::type;
+        constexpr int src_rank = introspection::rank<SourceView>();
+        constexpr int tgt_rank = introspection::rank<TargetView>();
+        static_assert( src_rank == tgt_rank, "src and tgt need same rank" );
+        SparseMatrixMultiply<Backend, indexing, src_rank, SourceValue, TargetValue>::multiply( W, src, tgt, config );
+    }
+
+    template <typename SourceView, typename TargetView>
+    static void multiplyAdd( const SparseMatrix& W, const SourceView& src, TargetView& tgt,
+                       const eckit::Configuration& config ) {
+        using SourceValue = const typename std::remove_const<typename SourceView::value_type>::type;
+        using TargetValue = typename std::remove_const<typename TargetView::value_type>::type;
+        constexpr int src_rank = introspection::rank<SourceView>();
+        constexpr int tgt_rank = introspection::rank<TargetView>();
+        static_assert( src_rank == tgt_rank, "src and tgt need same rank" );
+        SparseMatrixMultiply<Backend, indexing, src_rank, SourceValue, TargetValue>::multiplyAdd( W, src, tgt, config );
+    }
+};
 
 template <typename Backend, typename Matrix, typename SourceView, typename TargetView>
 void dispatch_sparse_matrix_multiply( const Matrix& matrix, const SourceView& src, TargetView& tgt, Indexing indexing,
@@ -37,26 +61,17 @@ void dispatch_sparse_matrix_multiply( const Matrix& matrix, const SourceView& sr
     auto src_v = make_view( src );
     auto tgt_v = make_view( tgt );
 
-    using SourceValue = const typename std::remove_const<typename decltype(src_v)::value_type>::type;
-    using TargetValue = typename std::remove_const<typename decltype(tgt_v)::value_type>::type;
-    constexpr int src_rank = introspection::rank<SourceView>();
-    constexpr int tgt_rank = introspection::rank<TargetView>();
-    static_assert( src_rank == tgt_rank, "src and tgt need same rank" );
-
     if ( introspection::layout_right( src ) || introspection::layout_right( tgt ) ) {
         ATLAS_ASSERT( introspection::layout_right( src ) && introspection::layout_right( tgt ) );
         // Override layout with known layout given by introspection
-        using SPMM = SparseMatrixMultiply<Backend, linalg::Indexing::layout_right, src_rank, SourceValue, TargetValue>;
-        SPMM::multiply( matrix, src_v, tgt_v, config );
+        SparseMatrixMultiplyHelper<Backend, linalg::Indexing::layout_right>::multiply( matrix, src_v, tgt_v, config );
     }
     else {
         if( indexing == Indexing::layout_left ) {
-            using SPMM = SparseMatrixMultiply<Backend, linalg::Indexing::layout_left, src_rank, SourceValue, TargetValue>;
-            SPMM::multiply( matrix, src_v, tgt_v, config );
+            SparseMatrixMultiplyHelper<Backend, linalg::Indexing::layout_left>::multiply( matrix, src_v, tgt_v, config );
         }
         else if( indexing == Indexing::layout_right ) {
-            using SPMM = SparseMatrixMultiply<Backend, linalg::Indexing::layout_right, src_rank, SourceValue, TargetValue>;
-            SPMM::multiply( matrix, src_v, tgt_v, config );
+            SparseMatrixMultiplyHelper<Backend, linalg::Indexing::layout_right>::multiply( matrix, src_v, tgt_v, config );
         }
         else {
             throw_NotImplemented( "indexing not implemented", Here() );
@@ -79,17 +94,14 @@ void dispatch_sparse_matrix_multiply_add( const Matrix& matrix, const SourceView
     if ( introspection::layout_right( src ) || introspection::layout_right( tgt ) ) {
         ATLAS_ASSERT( introspection::layout_right( src ) && introspection::layout_right( tgt ) );
         // Override layout with known layout given by introspection
-        using SPMM = SparseMatrixMultiply<Backend, linalg::Indexing::layout_right, src_rank, SourceValue, TargetValue>;
-        SPMM::multiplyAdd( matrix, src_v, tgt_v, config );
+        SparseMatrixMultiplyHelper<Backend, linalg::Indexing::layout_right>::multiplyAdd( matrix, src_v, tgt_v, config );
     }
     else {
         if( indexing == Indexing::layout_left ) {
-            using SPMM = SparseMatrixMultiply<Backend, linalg::Indexing::layout_left, src_rank, SourceValue, TargetValue>;
-            SPMM::multiplyAdd( matrix, src_v, tgt_v, config );
+            SparseMatrixMultiplyHelper<Backend, linalg::Indexing::layout_left>::multiplyAdd( matrix, src_v, tgt_v, config );
         }
         else if( indexing == Indexing::layout_right ) {
-            using SPMM = SparseMatrixMultiply<Backend, linalg::Indexing::layout_right, src_rank, SourceValue, TargetValue>;
-            SPMM::multiplyAdd( matrix, src_v, tgt_v, config );
+            SparseMatrixMultiplyHelper<Backend, linalg::Indexing::layout_right>::multiplyAdd( matrix, src_v, tgt_v, config );
         }
         else {
             throw_NotImplemented( "indexing not implemented", Here() );
@@ -105,6 +117,15 @@ void sparse_matrix_multiply_add( const Matrix& matrix, const SourceView& src, Ta
     std::string type = config.getString( "type", sparse::current_backend() );
     if ( type == sparse::backend::openmp::type() ) {
         sparse::dispatch_sparse_matrix_multiply_add<sparse::backend::openmp>( matrix, src, tgt, indexing, config );
+    } else if ( type == sparse::backend::eckit_linalg::type() ) {
+        sparse::dispatch_sparse_matrix_multiply_add<sparse::backend::eckit_linalg>( matrix, src, tgt, indexing, config );
+    }
+#if ATLAS_ECKIT_HAVE_ECKIT_585
+    else if( eckit::linalg::LinearAlgebraSparse::hasBackend(type) ) {
+#else
+    else if( eckit::linalg::LinearAlgebra::hasBackend(type) ) {
+#endif
+        sparse::dispatch_sparse_matrix_multiply_add<sparse::backend::eckit_linalg>( matrix, src, tgt, indexing, util::Config("backend",type)  );
     } else if ( type == sparse::backend::hicsparse::type() ) {
         sparse::dispatch_sparse_matrix_multiply_add<sparse::backend::hicsparse>( matrix, src, tgt, indexing, config );
     } else {
@@ -134,6 +155,15 @@ void sparse_matrix_multiply( const Matrix& matrix, const SourceView& src, Target
     std::string type = config.getString( "type", sparse::current_backend() );
     if ( type == sparse::backend::openmp::type() ) {
         sparse::dispatch_sparse_matrix_multiply<sparse::backend::openmp>( matrix, src, tgt, indexing, config );
+    } else if ( type == sparse::backend::eckit_linalg::type() ) {
+        sparse::dispatch_sparse_matrix_multiply<sparse::backend::eckit_linalg>( matrix, src, tgt, indexing, config );
+    }
+#if ATLAS_ECKIT_HAVE_ECKIT_585
+    else if( eckit::linalg::LinearAlgebraSparse::hasBackend(type) ) {
+#else
+    else if( eckit::linalg::LinearAlgebra::hasBackend(type) ) {
+#endif
+        sparse::dispatch_sparse_matrix_multiply<sparse::backend::eckit_linalg>( matrix, src, tgt, indexing, util::Config("backend",type)  );
     } else if ( type == sparse::backend::hicsparse::type() ) {
         sparse::dispatch_sparse_matrix_multiply<sparse::backend::hicsparse>( matrix, src, tgt, indexing, config );
     } else {

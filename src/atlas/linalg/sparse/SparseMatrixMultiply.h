@@ -111,5 +111,6 @@ struct SparseMatrixMultiply {
 }  // namespace atlas
 
 #include "SparseMatrixMultiply.tcc"
+#include "SparseMatrixMultiply_EckitLinalg.h"
 #include "SparseMatrixMultiply_OpenMP.h"
 #include "SparseMatrixMultiply_hicSparse.h"
