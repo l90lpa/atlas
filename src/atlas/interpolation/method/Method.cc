@@ -95,6 +95,18 @@ void set_missing_values(Field& tgt, const std::vector<idx_t>& missing) {
     }
 }
 
+template<typename Value, int Rank>
+atlas::array::ArrayView<Value, Rank> make_device_synced_view(atlas::Field& f) {
+    f.updateDevice();
+    return atlas::array::make_device_view<Value, Rank>(f);
+}
+
+template<typename Value, int Rank>
+atlas::array::ArrayView<const Value, Rank> make_device_synced_view(const atlas::Field& f) {
+    f.updateDevice();
+    return atlas::array::make_device_view<const Value, Rank>(f);
+}
+
 }  // anonymous namespace
 
 
@@ -102,8 +114,9 @@ template <typename Value>
 void Method::interpolate_field_rank1(const Field& src, Field& tgt, const Matrix& W) const {
     ATLAS_TRACE("atlas::interpolation::method::Method::interpolate_field_rank1(Field, Field)");
     auto backend = std::is_same<Value, float>::value ? sparse::backend::openmp() : sparse::Backend{linalg_backend_};
-    auto src_v   = array::make_view<Value, 1>(src);
-    auto tgt_v   = array::make_view<Value, 1>(tgt);
+
+    auto src_v = (backend.type() == "hicsparse") ? make_device_synced_view<Value, 1>(src) : array::make_view<Value, 1>(src);
+    auto tgt_v = (backend.type() == "hicsparse") ? make_device_synced_view<Value, 1>(tgt) : array::make_view<Value, 1>(tgt);
 
     if (nonLinear_(src)) {
         Matrix W_nl(W);  // copy (a big penalty -- copy-on-write would definitely be better)
@@ -113,18 +126,28 @@ void Method::interpolate_field_rank1(const Field& src, Field& tgt, const Matrix&
     else {
         sparse_matrix_multiply(W, src_v, tgt_v, backend);
     }
+
+    if (backend.type() == "hicsparse") {
+        tgt.setHostNeedsUpdate(true);
+        // tgt.updateHost();
+    }
 }
 
 
 template <typename Value>
 void Method::interpolate_field_rank2(const Field& src, Field& tgt, const Matrix& W) const {
     ATLAS_TRACE("atlas::interpolation::method::Method::interpolate_field_rank2(Field, Field)");
-    sparse::Backend backend{linalg_backend_};
-    auto src_v = array::make_view<Value, 2>(src);
-    auto tgt_v = array::make_view<Value, 2>(tgt);
+    auto backend = std::is_same<Value, float>::value ? sparse::backend::openmp() : sparse::Backend{linalg_backend_};
+    if (backend.type() == "eckit_linalg") {
+        backend = sparse::backend::openmp();
+    }
+
 
     if (nonLinear_(src)) {
         // We cannot apply the same matrix to full columns as e.g. missing values could be present in only certain parts.
+        
+        auto src_v = array::make_view<Value, 2>(src);
+        auto tgt_v = array::make_view<Value, 2>(tgt);
 
         // Allocate temporary rank-1 fields corresponding to one horizontal level
         auto src_slice = Field("s", array::make_datatype<Value>(), {src.shape(0)});
@@ -152,7 +175,12 @@ void Method::interpolate_field_rank2(const Field& src, Field& tgt, const Matrix&
         }
     }
     else {
-        sparse_matrix_multiply(W, src_v, tgt_v, sparse::backend::openmp());
+        auto src_dv = (backend.type() == "hicsparse") ? make_device_synced_view<Value, 2>(src) : array::make_view<Value, 2>(src);
+        auto tgt_dv = (backend.type() == "hicsparse") ? make_device_synced_view<Value, 2>(tgt) : array::make_view<Value, 2>(tgt);
+        sparse_matrix_multiply(W, src_dv, tgt_dv, backend);    
+        if (backend.type() == "hicsparse") {
+            tgt.setHostNeedsUpdate(true);
+        }
     }
 }
 
@@ -172,67 +200,46 @@ void Method::interpolate_field_rank3(const Field& src, Field& tgt, const Matrix&
 template <typename Value>
 void Method::adjoint_interpolate_field_rank1(Field& src, const Field& tgt, const Matrix& W) const {
     ATLAS_TRACE("atlas::interpolation::method::Method::adjoint_interpolate_field_rank1(Field, Field)");
-    array::ArrayT<Value> tmp(src.shape());
+    auto backend = std::is_same<Value, float>::value ? sparse::backend::openmp() : sparse::Backend{linalg_backend_};
 
-    auto tmp_v = array::make_view<Value, 1>(tmp);
-    auto src_v = array::make_view<Value, 1>(src);
-    auto tgt_v = array::make_view<Value, 1>(tgt);
+    auto src_v = (backend.type() == "hicsparse") ? make_device_synced_view<Value, 1>(src) : array::make_view<Value, 1>(src);
+    auto tgt_v = (backend.type() == "hicsparse") ? make_device_synced_view<Value, 1>(tgt) : array::make_view<Value, 1>(tgt);
 
-    tmp_v.assign(0.);
+    sparse_matrix_multiply_add(W, tgt_v, src_v, backend);
 
-    if (std::is_same<Value, float>::value) {
-        sparse_matrix_multiply(W, tgt_v, tmp_v, sparse::backend::openmp());
-    }
-    else {
-        sparse_matrix_multiply(W, tgt_v, tmp_v, sparse::Backend{linalg_backend_});
-    }
-
-
-    for (idx_t t = 0; t < tmp.shape(0); ++t) {
-        src_v(t) += tmp_v(t);
+    if (backend.type() == "hicsparse") {
+        src.setHostNeedsUpdate(true);
     }
 }
 
 template <typename Value>
 void Method::adjoint_interpolate_field_rank2(Field& src, const Field& tgt, const Matrix& W) const {
     ATLAS_TRACE("atlas::interpolation::method::Method::adjoint_interpolate_field_rank2(Field, Field)");
-    array::ArrayT<Value> tmp(src.shape());
+    auto backend = std::is_same<Value, float>::value ? sparse::backend::openmp() : sparse::Backend{linalg_backend_};
+    if (backend.type() == "eckit_linalg") {
+        backend = sparse::backend::openmp();
+    }
 
-    auto tmp_v = array::make_view<Value, 2>(tmp);
-    auto src_v = array::make_view<Value, 2>(src);
-    auto tgt_v = array::make_view<Value, 2>(tgt);
+    auto src_v = (backend.type() == "hicsparse") ? make_device_synced_view<Value, 2>(src) : array::make_view<Value, 2>(src);
+    auto tgt_v = (backend.type() == "hicsparse") ? make_device_synced_view<Value, 2>(tgt) : array::make_view<Value, 2>(tgt);
 
-    tmp_v.assign(0.);
+    sparse_matrix_multiply_add(W, tgt_v, src_v, backend);
 
-    sparse_matrix_multiply(W, tgt_v, tmp_v, sparse::backend::openmp());
-
-    for (idx_t t = 0; t < tmp.shape(0); ++t) {
-        for (idx_t k = 0; k < tmp.shape(1); ++k) {
-            src_v(t, k) += tmp_v(t, k);
-        }
+    if (backend.type() == "hicsparse") {
+        src.setHostNeedsUpdate(true);
     }
 }
 
 template <typename Value>
 void Method::adjoint_interpolate_field_rank3(Field& src, const Field& tgt, const Matrix& W) const {
     ATLAS_TRACE("atlas::interpolation::method::Method::adjoint_interpolate_field_rank3(Field, Field)");
-    array::ArrayT<Value> tmp(src.shape());
+    sparse::Backend backend{linalg_backend_};
 
-    auto tmp_v = array::make_view<Value, 3>(tmp);
     auto src_v = array::make_view<Value, 3>(src);
     auto tgt_v = array::make_view<Value, 3>(tgt);
 
-    tmp_v.assign(0.);
+    sparse_matrix_multiply_add(W, tgt_v, src_v, sparse::backend::openmp());
 
-    sparse_matrix_multiply(W, tgt_v, tmp_v, sparse::backend::openmp());
-
-    for (idx_t t = 0; t < tmp.shape(0); ++t) {
-        for (idx_t j = 0; j < tmp.shape(1); ++j) {
-            for (idx_t k = 0; k < tmp.shape(2); ++k) {
-                src_v(t, j, k) += tmp_v(t, j, k);
-            }
-        }
-    }
 }
 
 void Method::check_compatibility(const Field& src, const Field& tgt, const Matrix& W) const {
@@ -390,8 +397,13 @@ void Method::do_execute(const FieldSet& fieldsSource, FieldSet& fieldsTarget, Me
 void Method::do_execute(const Field& src, Field& tgt, Metadata&) const {
     ATLAS_TRACE("atlas::interpolation::method::Method::do_execute(Field, Field)");
 
+    // todo: dispatch to gpu-aware mpi if available
+    src.updateHost();
     haloExchange(src);
-
+    if (linalg_backend_ == "hicsparse") {
+        src.updateDevice();
+    }
+    
     if( matrix_ ) { // (matrix == nullptr) when a partition is empty
         if (src.datatype().kind() == array::DataType::KIND_REAL64) {
             interpolate_field<double>(src, tgt, *matrix_);
@@ -420,7 +432,13 @@ void Method::do_execute(const Field& src, Field& tgt, Metadata&) const {
     }
 
     // set missing values
-    set_missing_values(tgt, missing_);
+    if (not missing_.empty()) {
+        tgt.updateHost();
+        set_missing_values(tgt, missing_);
+        if (linalg_backend_ == "hicsparse") {
+            tgt.updateDevice();
+        }
+    }
 
     tgt.set_dirty();
 }
@@ -463,7 +481,12 @@ void Method::do_execute_adjoint(Field& src, const Field& tgt, Metadata&) const {
 
     src.set_dirty();
 
+    // todo: dispatch to gpu-aware mpi if available
+    src.updateHost();
     adjointHaloExchange(src);
+    if (linalg_backend_ == "hicsparse") {
+        src.updateDevice();
+    }
 }
 
 
