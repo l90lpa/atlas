@@ -159,6 +159,8 @@ void hsSpMV(const SparseMatrix& W, const View<SourceValue, 1>& src, TargetValue 
     HICSPARSE_CALL(hicsparseDestroyDnVec(vecY));
     HICSPARSE_CALL(hicsparseDestroySpMat(matA));
     HICSPARSE_CALL(hicsparseDestroy(handle));
+
+    HIC_CALL(hicDeviceSynchronize());
 }
 
 
@@ -255,8 +257,12 @@ void hsSpMM(const SparseMatrix& W, const View<SourceValue, 2>& src, TargetValue 
     HIC_CALL(hicFree(buffer));
     HICSPARSE_CALL(hicsparseDestroyDnMat(matC));
     HICSPARSE_CALL(hicsparseDestroyDnMat(matB));
+
+    HIC_CALL(hicDeviceSynchronize());
     HICSPARSE_CALL(hicsparseDestroySpMat(matA));
     HICSPARSE_CALL(hicsparseDestroy(handle));
+
+    HIC_CALL(hicDeviceSynchronize());
 }
 
 template <typename SourceValue, typename TargetValue>
