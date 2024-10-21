@@ -318,6 +318,10 @@ public:
         }
     }
 
+    ~WrappedDataStore() {
+        deallocateDevice();
+    }
+
     void updateDevice() const override {
         if (ATLAS_HAVE_GPU && devices()) {
             if (not device_allocated_) {
