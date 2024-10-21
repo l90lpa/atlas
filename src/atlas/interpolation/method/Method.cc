@@ -100,6 +100,7 @@ void set_missing_values(Field& tgt, const std::vector<idx_t>& missing) {
 
 template <typename Value>
 void Method::interpolate_field_rank1(const Field& src, Field& tgt, const Matrix& W) const {
+    ATLAS_TRACE("atlas::interpolation::method::Method::interpolate_field_rank1(Field, Field)");
     auto backend = std::is_same<Value, float>::value ? sparse::backend::openmp() : sparse::Backend{linalg_backend_};
     auto src_v   = array::make_view<Value, 1>(src);
     auto tgt_v   = array::make_view<Value, 1>(tgt);
@@ -117,6 +118,7 @@ void Method::interpolate_field_rank1(const Field& src, Field& tgt, const Matrix&
 
 template <typename Value>
 void Method::interpolate_field_rank2(const Field& src, Field& tgt, const Matrix& W) const {
+    ATLAS_TRACE("atlas::interpolation::method::Method::interpolate_field_rank2(Field, Field)");
     sparse::Backend backend{linalg_backend_};
     auto src_v = array::make_view<Value, 2>(src);
     auto tgt_v = array::make_view<Value, 2>(tgt);
@@ -157,6 +159,7 @@ void Method::interpolate_field_rank2(const Field& src, Field& tgt, const Matrix&
 
 template <typename Value>
 void Method::interpolate_field_rank3(const Field& src, Field& tgt, const Matrix& W) const {
+    ATLAS_TRACE("atlas::interpolation::method::Method::interpolate_field_rank3(Field, Field)");
     sparse::Backend backend{linalg_backend_};
     auto src_v = array::make_view<Value, 3>(src);
     auto tgt_v = array::make_view<Value, 3>(tgt);
@@ -168,6 +171,7 @@ void Method::interpolate_field_rank3(const Field& src, Field& tgt, const Matrix&
 
 template <typename Value>
 void Method::adjoint_interpolate_field_rank1(Field& src, const Field& tgt, const Matrix& W) const {
+    ATLAS_TRACE("atlas::interpolation::method::Method::adjoint_interpolate_field_rank1(Field, Field)");
     array::ArrayT<Value> tmp(src.shape());
 
     auto tmp_v = array::make_view<Value, 1>(tmp);
@@ -191,6 +195,7 @@ void Method::adjoint_interpolate_field_rank1(Field& src, const Field& tgt, const
 
 template <typename Value>
 void Method::adjoint_interpolate_field_rank2(Field& src, const Field& tgt, const Matrix& W) const {
+    ATLAS_TRACE("atlas::interpolation::method::Method::adjoint_interpolate_field_rank2(Field, Field)");
     array::ArrayT<Value> tmp(src.shape());
 
     auto tmp_v = array::make_view<Value, 2>(tmp);
@@ -210,6 +215,7 @@ void Method::adjoint_interpolate_field_rank2(Field& src, const Field& tgt, const
 
 template <typename Value>
 void Method::adjoint_interpolate_field_rank3(Field& src, const Field& tgt, const Matrix& W) const {
+    ATLAS_TRACE("atlas::interpolation::method::Method::adjoint_interpolate_field_rank3(Field, Field)");
     array::ArrayT<Value> tmp(src.shape());
 
     auto tmp_v = array::make_view<Value, 3>(tmp);
@@ -242,6 +248,7 @@ void Method::check_compatibility(const Field& src, const Field& tgt, const Matri
 
 template <typename Value>
 void Method::interpolate_field(const Field& src, Field& tgt, const Matrix& W) const {
+    ATLAS_TRACE("atlas::interpolation::method::Method::interpolate_field(Field, Field)");
     // do nothing if there are no observations to interpolate (W will be NULL
     // and would fail the compatibility check)
     if (tgt.shape(0) == 0) {
@@ -265,6 +272,7 @@ void Method::interpolate_field(const Field& src, Field& tgt, const Matrix& W) co
 
 template <typename Value>
 void Method::adjoint_interpolate_field(Field& src, const Field& tgt, const Matrix& W) const {
+    ATLAS_TRACE("atlas::interpolation::method::Method::adjoint_interpolate_field(Field, Field)");
     // do nothing if there are no observations to interpolate (W will be NULL
     // and would fail the compatibility check)
     if (tgt.shape(0) == 0) {
@@ -287,6 +295,7 @@ void Method::adjoint_interpolate_field(Field& src, const Field& tgt, const Matri
 }
 
 Method::Method(const Method::Config& config) {
+    ATLAS_TRACE("atlas::interpolation::method::Method::Method(Config) constructor");
     config.get("sparse_matrix_multiply", linalg_backend_);  // empty is allowed -> sparse::current_backend()
 
     std::string non_linear;
@@ -368,7 +377,7 @@ void Method::do_setup(const FunctionSpace& /*source*/, const FieldSet& /*target*
 }
 
 void Method::do_execute(const FieldSet& fieldsSource, FieldSet& fieldsTarget, Metadata& metadata) const {
-    ATLAS_TRACE("atlas::interpolation::method::Method::do_execute()");
+    ATLAS_TRACE("atlas::interpolation::method::Method::do_execute(FieldSet, FieldSet)");
 
     const idx_t N = fieldsSource.size();
     ATLAS_ASSERT(N == fieldsTarget.size());
@@ -379,7 +388,7 @@ void Method::do_execute(const FieldSet& fieldsSource, FieldSet& fieldsTarget, Me
 }
 
 void Method::do_execute(const Field& src, Field& tgt, Metadata&) const {
-    ATLAS_TRACE("atlas::interpolation::method::Method::do_execute()");
+    ATLAS_TRACE("atlas::interpolation::method::Method::do_execute(Field, Field)");
 
     haloExchange(src);
 
@@ -417,7 +426,7 @@ void Method::do_execute(const Field& src, Field& tgt, Metadata&) const {
 }
 
 void Method::do_execute_adjoint(FieldSet& fieldsSource, const FieldSet& fieldsTarget, Metadata& metadata) const {
-    ATLAS_TRACE("atlas::interpolation::method::Method::do_execute_adjoint()");
+    ATLAS_TRACE("atlas::interpolation::method::Method::do_execute_adjoint(FieldSetr, FieldSet)");
 
     const idx_t N = fieldsSource.size();
     ATLAS_ASSERT(N == fieldsTarget.size());
@@ -428,7 +437,7 @@ void Method::do_execute_adjoint(FieldSet& fieldsSource, const FieldSet& fieldsTa
 }
 
 void Method::do_execute_adjoint(Field& src, const Field& tgt, Metadata&) const {
-    ATLAS_TRACE("atlas::interpolation::method::Method::do_execute_adjoint()");
+    ATLAS_TRACE("atlas::interpolation::method::Method::do_execute_adjoint(Field, Field)");
 
     if (nonLinear_(src)) {
         throw_NotImplemented("Adjoint interpolation only works for interpolation schemes that are linear", Here());
@@ -474,28 +483,33 @@ void Method::normalise(Triplets& triplets) {
 }
 
 void Method::haloExchange(const FieldSet& fields) const {
+    ATLAS_TRACE("atlas::interpolation::method::Method::haloExchange(FieldSet)");
     for (auto& field : fields) {
         haloExchange(field);
     }
 }
 void Method::haloExchange(const Field& field) const {
+    ATLAS_TRACE("atlas::interpolation::method::Method::haloExchange(Field)");
     if (field.dirty() && allow_halo_exchange_) {
         source().haloExchange(field);
     }
 }
 
 void Method::adjointHaloExchange(const FieldSet& fields) const {
+    ATLAS_TRACE("atlas::interpolation::method::Method::adjointHaloExchange(FieldSet)");
     for (auto& field : fields) {
         adjointHaloExchange(field);
     }
 }
 void Method::adjointHaloExchange(const Field& field) const {
+    ATLAS_TRACE("atlas::interpolation::method::Method::adjointHaloExchange(Field)");
     if (field.dirty() && allow_halo_exchange_) {
         source().adjointHaloExchange(field);
     }
 }
 
 interpolation::Cache Method::createCache() const {
+    ATLAS_TRACE("atlas::interpolation::method::Method::createCache()");
     return matrix_cache_;
 }
 
