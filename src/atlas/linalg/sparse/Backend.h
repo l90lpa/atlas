@@ -39,10 +39,10 @@ struct openmp : Backend {
     openmp(): Backend(type()) {}
 };
 
-// struct eckit_linalg : Backend {
-//     static std::string type() { return "eckit_linalg"; }
-//     eckit_linalg(): Backend(type()) {}
-// };
+struct eckit_linalg : Backend {
+    static std::string type() { return "eckit_linalg"; }
+    eckit_linalg(): Backend(type()) {}
+};
 
 struct hicsparse : Backend {
     static std::string type() { return "hicsparse"; }
