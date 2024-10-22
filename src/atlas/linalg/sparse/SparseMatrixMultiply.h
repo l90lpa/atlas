@@ -11,18 +11,17 @@
 #pragma once
 
 #include "eckit/config/Configuration.h"
-#include "eckit/linalg/SparseMatrix.h"
 
 #include "atlas/linalg/Indexing.h"
 #include "atlas/linalg/View.h"
 #include "atlas/linalg/sparse/Backend.h"
+#include "atlas/linalg/SparseMatrix.h"
 #include "atlas/runtime/Exception.h"
 #include "atlas/util/Config.h"
 
 namespace atlas {
 namespace linalg {
 
-using SparseMatrix  = eckit::linalg::SparseMatrix;
 using Configuration = eckit::Configuration;
 
 template <typename Matrix, typename SourceView, typename TargetView>
@@ -78,3 +77,4 @@ struct SparseMatrixMultiply {
 #include "SparseMatrixMultiply.tcc"
 #include "SparseMatrixMultiply_EckitLinalg.h"
 #include "SparseMatrixMultiply_OpenMP.h"
+#include "SparseMatrixMultiply_HicSparse.h"
