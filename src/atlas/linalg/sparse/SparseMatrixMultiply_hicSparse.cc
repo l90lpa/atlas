@@ -19,6 +19,39 @@
 
 namespace {
 
+struct HicSparseHandle {
+  hicsparseHandle_t handle;
+
+  HicSparseHandle();
+
+  static bool is_initialized();
+  static HicSparseHandle& instance();
+
+ private:
+  static std::unique_ptr<HicSparseHandle>& get_instance();
+};
+
+HicSparseHandle::HicSparseHandle() { KOKKOS_CUSPARSE_SAFE_CALL(cusparseCreate(&cusparseHandle)); }
+
+HicSparseHandle& HicSparseHandle::instance() {
+  std::unique_ptr<HicSparseHandle>& instance = get_instance();
+  if (!instance) {
+    instance = std::make_unique<HicSparseHandle>();
+    Kokkos::push_finalize_hook([&]() {
+      KOKKOS_CUSPARSE_SAFE_CALL(cusparseDestroy(instance->cusparseHandle));
+      instance.reset();
+    });
+  }
+  return *instance;
+}
+
+bool HicSparseHandle::is_initialized() { return get_instance() != nullptr; }
+
+std::unique_ptr<HicSparseHandle>& HicSparseHandle::get_instance() {
+  static std::unique_ptr<HicSparseHandle> s;
+  return s;
+}
+
 template<typename T>
 constexpr hicsparseIndexType_t getHicsparseIndexType() {
     using base_type = std::remove_const_t<T>;
@@ -87,6 +120,7 @@ void hsSpMV(const SparseMatrix& W, const View<SourceValue, 1>& src, TargetValue 
     }
 
     // Create sparse library handle
+    // todo: use singleton class for storing hicSparse library handle.
     hicsparseHandle_t handle;
     HICSPARSE_CALL(hicsparseCreate(&handle));
 
@@ -181,6 +215,7 @@ void hsSpMM(const SparseMatrix& W, const View<SourceValue, 2>& src, TargetValue 
     }
 
     // Create sparse library handle
+    // todo: use singleton class for storing hicSparse library handle.
     hicsparseHandle_t handle;
     HICSPARSE_CALL(hicsparseCreate(&handle));
 
@@ -257,8 +292,6 @@ void hsSpMM(const SparseMatrix& W, const View<SourceValue, 2>& src, TargetValue 
     HIC_CALL(hicFree(buffer));
     HICSPARSE_CALL(hicsparseDestroyDnMat(matC));
     HICSPARSE_CALL(hicsparseDestroyDnMat(matB));
-
-    HIC_CALL(hicDeviceSynchronize());
     HICSPARSE_CALL(hicsparseDestroySpMat(matA));
     HICSPARSE_CALL(hicsparseDestroy(handle));
 
