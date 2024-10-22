@@ -30,6 +30,7 @@ namespace test {
 // strings to be used in the tests
 static std::string eckit_linalg = sparse::backend::eckit_linalg::type();
 static std::string openmp       = sparse::backend::openmp::type();
+static std::string hicsparse    = sparse::backend::hicsparse::type();
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -62,14 +63,42 @@ public:
             ++r;
         }
     }
+
+    Matrix(const std::vector<std::vector<Scalar>>& m):
+        eckit::linalg::Matrix::Matrix(m.size(), m.size() ? m.begin()->size() : 0) {
+        size_t r = 0;
+        for (auto& row : m) {
+            for (size_t c = 0; c < cols(); ++c) {
+                operator()(r, c) = row[c];
+            }
+            ++r;
+        }
+    }
 };
+
+template<typename Value, int Rank>
+atlas::array::ArrayView<Value, Rank> make_device_synced_view(atlas::array::ArrayT<Value>& array) {
+    array.updateDevice();
+    return array::make_device_view<Value, Rank>(array);
+}
 
 // 2D array constructable from eckit::linalg::Matrix
 // Indexing/memorylayout and data type can be customized for testing
 template <typename Value, Indexing indexing = Indexing::layout_left>
 struct ArrayMatrix {
-    array::ArrayView<Value, 2>& view() { return view_; }
+    array::ArrayView<Value, 2> view() {
+        array.syncHostDevice();
+        return array::make_view<Value, 2>(array);
+    }
+    array::ArrayView<Value, 2> device_view() {
+        array.syncHostDevice();
+        return array::make_device_view<Value, 2>(array);
+    }
+    void setHostNeedsUpdate(bool b) {
+        array.setHostNeedsUpdate(b);
+    }
     ArrayMatrix(const eckit::linalg::Matrix& m): ArrayMatrix(m.rows(), m.cols()) {
+        auto view_ = array::make_view<Value, 2>(array);
         for (int r = 0; r < m.rows(); ++r) {
             for (int c = 0; c < m.cols(); ++c) {
                 auto& v = layout_left ? view_(r, c) : view_(c, r);
@@ -77,7 +106,7 @@ struct ArrayMatrix {
             }
         }
     }
-    ArrayMatrix(int r, int c): array(make_shape(r, c)), view_(array::make_view<Value, 2>(array)) {}
+    ArrayMatrix(int r, int c): array(make_shape(r, c)) {}
 
 private:
     static constexpr bool layout_left = (indexing == Indexing::layout_left);
@@ -85,19 +114,37 @@ private:
         return layout_left ? array::make_shape(rows, cols) : array::make_shape(cols, rows);
     }
     array::ArrayT<Value> array;
-    array::ArrayView<Value, 2> view_;
 };
 
 // 1D array constructable from eckit::linalg::Vector
 template <typename Value>
 struct ArrayVector {
-    array::ArrayView<Value, 1>& view() { return view_; }
+    array::ArrayView<Value, 1> view() {
+        if (array.hostNeedsUpdate()) {
+            array.syncHostDevice();
+        }
+        return array::make_view<Value, 1>(array);
+    }
+    array::ArrayView<const Value, 1> const_view() {
+        if (array.hostNeedsUpdate()) {
+            array.syncHostDevice();
+        }
+        return array::make_view<const Value, 1>(array);
+    }
+    array::ArrayView<Value, 1> device_view() {
+        array.syncHostDevice();
+        return array::make_device_view<Value, 1>(array);
+    }
+    void setHostNeedsUpdate(bool b) {
+        array.setHostNeedsUpdate(b);
+    }
     ArrayVector(const eckit::linalg::Vector& v): ArrayVector(v.size()) {
+        auto view_ = array::make_view<Value, 1>(array);
         for (int n = 0; n < v.size(); ++n) {
             view_[n] = v[n];
         }
     }
-    ArrayVector(int size): array(size), view_(array::make_view<Value, 1>(array)) {}
+    ArrayVector(int size) : array(size) {}
 
 private:
     array::ArrayT<Value> array;
@@ -116,6 +163,11 @@ SparseMatrix Identity(SparseMatrix::Size rows, SparseMatrix::Size cols) {
     }
 
     return SparseMatrix(rows, cols, triplets);
+}
+
+template<typename T>
+atlas::array::ArrayView<const T, 1> make_view(const std::vector<T>& v) {
+    return atlas::array::ArrayView<const T, 1>(v.data(), atlas::array::make_shape(v.size()), atlas::array::make_strides(1));
 }
 
 template<typename T>
@@ -188,6 +240,8 @@ CASE("test introspection") {
         EXPECT(introspection::contiguous(view));
         EXPECT_EQ(introspection::shape<0>(view), 4);
         EXPECT_EQ(introspection::shape<1>(view), 3);
+        EXPECT_EQ(view.stride<0>(), 3);
+        EXPECT_EQ(view.stride<1>(), 1);
     }
     SECTION("std::vector") {
         using View = std::vector<double>;
@@ -234,6 +288,7 @@ CASE("test backend functionalities") {
     sparse::current_backend(eckit_linalg);
     EXPECT_EQ(sparse::current_backend().type(), "eckit_linalg");
     EXPECT_EQ(sparse::current_backend().getString("backend", "undefined"), "undefined");
+    
     sparse::current_backend().set("backend", "default");
     EXPECT_EQ(sparse::current_backend().getString("backend"), "default");
 
@@ -241,18 +296,25 @@ CASE("test backend functionalities") {
     EXPECT_EQ(sparse::current_backend().getString("backend", "undefined"), "undefined");
     EXPECT_EQ(sparse::default_backend(eckit_linalg).getString("backend"), "default");
 
+    sparse::current_backend(hicsparse);
+    EXPECT_EQ(sparse::current_backend().type(), "hicsparse");
+    EXPECT_EQ(sparse::current_backend().getString("backend", "undefined"), "undefined");
+
     sparse::default_backend(eckit_linalg).set("backend", "generic");
     EXPECT_EQ(sparse::default_backend(eckit_linalg).getString("backend"), "generic");
 
     const sparse::Backend backend_default      = sparse::Backend();
     const sparse::Backend backend_openmp       = sparse::backend::openmp();
     const sparse::Backend backend_eckit_linalg = sparse::backend::eckit_linalg();
-    EXPECT_EQ(backend_default.type(), openmp);
+    const sparse::Backend backend_hicsparse    = sparse::backend::hicsparse();
+    EXPECT_EQ(backend_default.type(), hicsparse);
     EXPECT_EQ(backend_openmp.type(), openmp);
     EXPECT_EQ(backend_eckit_linalg.type(), eckit_linalg);
+    EXPECT_EQ(backend_hicsparse.type(), hicsparse);
 
     EXPECT_EQ(std::string(backend_openmp), openmp);
     EXPECT_EQ(std::string(backend_eckit_linalg), eckit_linalg);
+    EXPECT_EQ(std::string(backend_hicsparse), hicsparse);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -393,13 +455,43 @@ CASE("sparse_matrix vector multiply (spmv)") {
         SECTION("View of atlas::Array [backend=" + backend + "]") {
             ArrayVector<double> x(Vector{1., 2., 3.});
             ArrayVector<double> y(3);
-            sparse_matrix_multiply(A, x.view(), y.view());
+            auto y_view = y.view();
+            sparse_matrix_multiply(A, x.view(), y_view);
             expect_equal(y.view(), Vector{-7., 4., 6.});
             // sparse_matrix_multiply of sparse matrix and vector of non-matching sizes should fail
             {
                 ArrayVector<double> x2(2);
-                EXPECT_THROWS_AS(sparse_matrix_multiply(A, x2.view(), y.view()), eckit::AssertionFailed);
+                EXPECT_THROWS_AS(sparse_matrix_multiply(A, x2.view(), y_view), eckit::AssertionFailed);
             }
+        }
+    }
+}
+
+CASE("sparse-matrix vector multiply (spmv) [backend=hicsparse]") {
+    // "square" matrix
+    // A =  2  . -3
+    //      .  2  .
+    //      .  .  2
+    // x = 1 2 3
+    // y = 1 2 3
+    sparse::current_backend(hicsparse);
+
+    SparseMatrix A{3, 3, {{0, 0, 2.}, {0, 2, -3.}, {1, 1, 2.}, {2, 2, 2.}}};
+
+    SECTION("View of atlas::Array [backend=hicsparse]") {
+        ArrayVector<double> x(Vector{1., 2., 3.});
+        ArrayVector<double> y(3);
+        auto x_device_view = x.device_view();
+        auto y_device_view = y.device_view();
+        sparse_matrix_multiply(A, x_device_view, y_device_view);
+        y.setHostNeedsUpdate(true);
+        auto y_view = y.view();
+        expect_equal(y.view(), Vector{-7., 4., 6.});
+        // sparse_matrix_multiply of sparse matrix and vector of non-matching sizes should fail
+        {
+            ArrayVector<double> x2(2);
+            auto x2_device_view = x2.device_view();
+            EXPECT_THROWS_AS(sparse_matrix_multiply(A, x2_device_view, y_device_view), eckit::AssertionFailed);
         }
     }
 }
@@ -438,8 +530,9 @@ CASE("sparse_matrix matrix multiply (spmm)") {
         SECTION("View of atlas::Array PointsRight [backend=" + sparse::current_backend().type() + "]") {
             ArrayMatrix<double, Indexing::layout_right> ma(m);
             ArrayMatrix<double, Indexing::layout_right> c(3, 2);
-            sparse_matrix_multiply(A, ma.view(), c.view(), Indexing::layout_right);
-            expect_equal(c.view(), c_exp);
+            auto c_view = c.view();
+            sparse_matrix_multiply(A, ma.view(), c_view, Indexing::layout_right);
+            expect_equal(c_view, c_exp);
         }
     }
 
@@ -448,8 +541,9 @@ CASE("sparse_matrix matrix multiply (spmm)") {
         auto backend = sparse::backend::openmp();
         ArrayMatrix<float> ma(m);
         ArrayMatrix<float> c(3, 2);
-        sparse_matrix_multiply(A, ma.view(), c.view(), backend);
-        expect_equal(c.view(), ArrayMatrix<float>(c_exp).view());
+        auto c_view = c.view();
+        sparse_matrix_multiply(A, ma.view(), c_view, backend);
+        expect_equal(c_view, ArrayMatrix<float>(c_exp).view());
     }
 
     SECTION("SparseMatrixMultiply [backend=openmp] 1") {
@@ -457,8 +551,9 @@ CASE("sparse_matrix matrix multiply (spmm)") {
         auto spmm = SparseMatrixMultiply{sparse::backend::openmp()};
         ArrayMatrix<float> ma(m);
         ArrayMatrix<float> c(3, 2);
-        spmm(A, ma.view(), c.view());
-        expect_equal(c.view(), ArrayMatrix<float>(c_exp).view());
+        auto c_view = c.view();
+        spmm(A, ma.view(), c_view);
+        expect_equal(c_view, ArrayMatrix<float>(c_exp).view());
     }
 
     SECTION("SparseMatrixMultiply [backend=openmp] 2") {
@@ -466,8 +561,70 @@ CASE("sparse_matrix matrix multiply (spmm)") {
         auto spmm = SparseMatrixMultiply{openmp};
         ArrayMatrix<float> ma(m);
         ArrayMatrix<float> c(3, 2);
-        spmm(A, ma.view(), c.view());
-        expect_equal(c.view(), ArrayMatrix<float>(c_exp).view());
+        auto c_view = c.view();
+        spmm(A, ma.view(), c_view);
+        expect_equal(c_view, ArrayMatrix<float>(c_exp).view());
+    }
+}
+
+CASE("sparse-matrix matrix multiply (spmm) [backend=hicsparse]") {
+    // "square"
+    // A =  2  . -3
+    //      .  2  .
+    //      .  .  2
+    // x = 1 2 3
+    // y = 1 2 3
+    sparse::current_backend(hicsparse);
+
+    SparseMatrix A{3, 3, {{0, 0, 2.}, {0, 2, -3.}, {1, 1, 2.}, {2, 2, 2.}}};
+    Matrix m{{1., 2.}, {3., 4.}, {5., 6.}};
+    Matrix c_exp{{-13., -14.}, {6., 8.}, {10., 12.}};
+
+    SECTION("View of atlas::Array PointsRight [backend=hicsparse]") {
+        ArrayMatrix<double, Indexing::layout_right> ma(m);
+        ArrayMatrix<double, Indexing::layout_right> c(3, 2);
+        auto ma_device_view = ma.device_view();
+        auto c_device_view = c.device_view();
+        sparse_matrix_multiply(A, ma_device_view, c_device_view, Indexing::layout_right);
+        c.setHostNeedsUpdate(true);
+        auto c_view = c.view();
+        expect_equal(c_view, ArrayMatrix<double, Indexing::layout_right>(c_exp).view());
+    }
+
+    SECTION("sparse_matrix_multiply [backend=hicsparse]") {
+        auto backend = sparse::backend::hicsparse();
+        ArrayMatrix<double> ma(m);
+        ArrayMatrix<double> c(3, 2);
+        auto ma_device_view = ma.device_view();
+        auto c_device_view = c.device_view();
+        sparse_matrix_multiply(A, ma_device_view, c_device_view, backend);
+        c.setHostNeedsUpdate(true);
+        auto c_view = c.view();
+        expect_equal(c_view, ArrayMatrix<double>(c_exp).view());
+    }
+
+    SECTION("SparseMatrixMultiply [backend=hicsparse] 1") {
+        auto spmm = SparseMatrixMultiply{sparse::backend::hicsparse()};
+        ArrayMatrix<double> ma(m);
+        ArrayMatrix<double> c(3, 2);
+        auto ma_device_view = ma.device_view();
+        auto c_device_view = c.device_view();
+        spmm(A, ma_device_view, c_device_view);
+        c.setHostNeedsUpdate(true);
+        auto c_view = c.view();
+        expect_equal(c_view, ArrayMatrix<double>(c_exp).view());
+    }
+
+    SECTION("SparseMatrixMultiply [backend=hicsparse] 2") {
+        auto spmm = SparseMatrixMultiply{hicsparse};
+        ArrayMatrix<double> ma(m);
+        ArrayMatrix<double> c(3, 2);
+        auto ma_device_view = ma.device_view();
+        auto c_device_view = c.device_view();
+        spmm(A, ma_device_view, c_device_view);
+        c.setHostNeedsUpdate(true);
+        auto c_view = c.view();
+        expect_equal(c_view, ArrayMatrix<double>(c_exp).view());
     }
 }
 
