@@ -484,6 +484,11 @@ void Method::do_execute(const Field& src, Field& tgt, Metadata&) const {
         tgt.setDeviceNeedsUpdate(true);
     }
 
+    // temporarily add to ensure that host memory is up-to-date before exiting interpolation
+    if (tgt.hostNeedsUpdate()) {
+            tgt.updateHost();
+    }
+
     tgt.set_dirty();
 }
 

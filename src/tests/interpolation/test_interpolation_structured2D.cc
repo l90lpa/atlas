@@ -428,9 +428,10 @@ void test_interpolation_structured_using_fs_API_for_fieldset_w_hicsparse_backend
         config.set("sparse_matrix_multiply", "hicsparse");
         Interpolation interpolation(config, input_fs, output_fs);
         interpolation.execute(fields_source, fields_target);
-        for (auto& field : fields_target) {
-            field.updateHost();
-        }
+        // temporarily remove as unecessary
+        // for (auto& field : fields_target) {
+        //     field.updateHost();
+        // }
         
         ATLAS_TRACE_SCOPE("output") {
             output::Gmsh gmsh(scheme().getString("name") + "-multilevel-fieldset-output-with-matrix-" +
@@ -467,9 +468,10 @@ void test_interpolation_structured_using_fs_API_for_fieldset_w_hicsparse_backend
         }
 
         interpolation.execute(fields_source, fields_target);
-        for (auto& field : fields_target) {
-            field.updateHost();
-        }
+        // temporarily remove as unecessary
+        // for (auto& field : fields_target) {
+        //     field.updateHost();
+        // }
 
         std::size_t fIndx(0);
         auto source_names = fields_source.field_names();
@@ -492,9 +494,10 @@ void test_interpolation_structured_using_fs_API_for_fieldset_w_hicsparse_backend
         }
 
         interpolation.execute_adjoint(fields_source, fields_target);
-        for (auto& field : fields_source) {
-            field.updateHost();
-        }
+        // temporarily remove as unecessary
+        // for (auto& field : fields_source) {
+        //     field.updateHost();
+        // }
 
         fIndx = 0;
         for (const std::string& s : fields_source.field_names()) {

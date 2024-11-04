@@ -1002,6 +1002,8 @@ ecbuild_add_library( TARGET atlas
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src>
     $<INSTALL_INTERFACE:include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/hic/src>
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/hic/src>
 
 )
 
